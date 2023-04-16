@@ -5,52 +5,51 @@ import Logo from './components/Logo/Logo';
 import Navigation from './components/Navigation/Navigation';
 import Rank from './components/Rank/Rank';
 import ParticlesBg from 'particles-bg';
-import FaceRecognition from './components/FaceRecognition/FaceRecognition';
+import Clarifai from 'clarifai'
 
-const Clarifai = require('clarifai');
 
-const app = new Clarifai.App({
+const app = new Clarifai.App ({
   apiKey: '33ae34510ce844dd81ba2294c21d84c4'
-});
+})
+
+function detectFace(imageUrl) {
+  return app.models.predict(Clarifai.FACE_DETECT_MODEL, imageUrl)
+    .then(response => {
+      const faceData = response.outputs[0].data;
+      if (faceData.regions && faceData.regions.length > 0) {
+        return faceData.regions.map(region => region.region_info.bounding_box);
+      } else {
+        return [];
+      }
+    })
+    .catch(err => console.log(err));
+}
 
 class App extends Component {
   constructor() {
     super();
     this.state = {
       input: '',
-      imageUrl: '',
-      box: {},
     }
-  }
-
-  calculateFaceLocation = (data) => {
-    const clarifaiFace = data.outputs[0].data.regions[0].region_info.bounding_box;
-    const image = document.getElementById('inputimage');
-    const width = Number(image.width);
-    const height = Number(image.height);
-    return {
-      leftCol: clarifaiFace.left_col * width,
-      topRow: clarifaiFace.top_row * height,
-      rightCol: width - (clarifaiFace.right_col * width),
-      bottomRow: height - (clarifaiFace.bottom_row * height),
-    }
-  }
-
-  displayFaceBox = (box) => {
-    this.setState({box: box});
   }
 
   onInputChange = (event) => {
-    this.setState({input: event.target.value});
+    // console.log(event.target.value);
+    this.setState({ input: event.target.value });
   }
 
-  onButtonSubmit = () => {
-    this.setState({imageUrl: this.state.input});
-    app.models
-      .predict(Clarifai.FACE_DETECT_MODEL, this.state.input)
-      .then(response => this.displayFaceBox(this.calculateFaceLocation(response)))
+  onUrlSubmit = () => {
+    this.onButtonSubmit(this.state.input);
+  }  
+
+  onButtonSubmit = (imageUrl) => {
+    return detectFace(imageUrl)
+      .then(response => {
+        console.log(response);
+      })
       .catch(err => console.log(err));
   }
+  
 
   render() {
     return (
@@ -63,10 +62,8 @@ class App extends Component {
             onInputChange={this.onInputChange} 
             onButtonSubmit={this.onButtonSubmit} 
           />
-          <FaceRecognition 
-            imageUrl={this.state.imageUrl} 
-            box={this.state.box} 
-          />
+          {/* <FaceRecognition 
+          /> */}
         </div>
         <div className='Particles'>
           <ParticlesBg type="cobweb" num={300} color='#ffffff' bg={true} />
